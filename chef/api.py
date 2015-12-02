@@ -14,7 +14,7 @@ import requests
 
 from chef.auth import sign_request
 from chef.exceptions import ChefServerError
-from chef.rsa import Key
+from chef.key import Key
 from chef.utils import json
 from chef.utils.file import walk_backwards
 

@@ -1,6 +1,36 @@
 import six
+import sys
 
 import rsa
+
+
+def _pad_sig(message, length):
+    """ Simplified padding of the message.
+
+    Return message is length bytes and of the format:
+
+    00 01 <FF pading> 00 message
+    """
+
+    maxlen = length - 4
+    msglen = len(message)
+
+    if msglen > maxlen:
+        raise OverflowError('{} byte message > {} message limit'.format(msglen, maxlen))
+
+    padlen = length - msglen - 3
+
+    if sys.version_info[0] < 3:
+        ret = '\x00\x01{}\x00{}'.format(padlen * '\xff', message)
+    else:
+        ret = b''.join([
+            b'\x00\x01',
+            padlen * b'\xff',
+            b'\x00',
+            message.encode('latin1')
+        ]) 
+
+    return ret
 
 class SSLError(Exception):
     """An error in OpenSSL."""
@@ -28,6 +58,11 @@ class Key(object):
             self.raw = open(fp, 'rb').read()
         else:
             self.raw = fp.read()
+
+        if sys.version_info[0] < 3:
+            if type(self.raw) is not unicode:
+                self.raw = unicode(self.raw)
+
         self._load_key()
 
     def _load_key(self):
@@ -56,10 +91,11 @@ class Key(object):
             raise SSLError('can not sign a message using a public key')
 
         keylength = rsa.common.byte_size(self.key.n)
-        padded = rsa.pkcs1._pad_for_signing(message, keylength)
+        padded = _pad_sig(message, keylength)
         payload = rsa.transform.bytes2int(padded)
         encrypted = rsa.core.encrypt_int(payload, self.key.d, self.key.n)
         block = rsa.transform.int2bytes(encrypted, keylength)
+
         return block
 
     def verify(self, message, sig):

@@ -75,7 +75,8 @@ def sign_request(key, http_method, path, body, host, timestamp, user_id):
 
     # Create RSA signature
     req = canonical_request(http_method, path, hashed_body, timestamp, user_id)
-    sig = _ruby_b64encode(key.sign(req))
-    for i, line in enumerate(sig):
+    sig = key.sign(req)
+    enc_sig = _ruby_b64encode(sig)
+    for i, line in enumerate(enc_sig):
         headers['x-ops-authorization-%s'%(i+1)] = line
     return headers

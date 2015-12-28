@@ -38,11 +38,6 @@ class RSATestCase(unittest2.TestCase):
         raw = open(os.path.join(TEST_ROOT, 'client_pub.pem'), 'rb').read()
         self.assertTrue(key.public_export().strip(), raw.strip())
 
-    def test_generate(self):
-        key = Key.generate()
-        msg = "Test String!"
-        self.assertEqual(key.decrypt(key.encrypt(msg)), msg)
-
     def test_generate_load(self):
         key = Key.generate()
         key2 = Key(key.private_export())

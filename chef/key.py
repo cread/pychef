@@ -20,23 +20,27 @@ def _pad_sig(message, length):
 
     padlen = length - msglen - 3
 
-    if sys.version_info[0] < 3:
-        ret = '\x00\x01{}\x00{}'.format(padlen * '\xff', message)
-    else:
-        ret = b''.join([
-            b'\x00\x01',
-            padlen * b'\xff',
-            b'\x00',
-            message.encode('latin1')
-        ]) 
+    return b''.join([
+        b'\x00\x01',
+        padlen * b'\xff',
+        b'\x00',
+        message.encode('latin1')
+    ]) 
 
-    return ret
 
-class SSLError(Exception):
-    """An error in OpenSSL."""
+class VerificationError(Exception):
+    """An error in Message Verification."""
 
     def __init__(self, message, *args):
-        message = message%args
+        message = message % args
+        super(VerificationError, self).__init__(message)
+
+
+class SSLError(Exception):
+    """An error in Key Management."""
+
+    def __init__(self, message, *args):
+        message = message % args
         super(SSLError, self).__init__(message)
 
 
@@ -107,20 +111,14 @@ class Key(object):
         clearsig = rsa.transform.int2bytes(decrypted, blocksize)
 
         # If we can't find the signature  marker, verification failed.
-        if clearsig[0:2] != '\x00\x01':
-            raise VerificationError('Verification failed')
+        if clearsig[0:2] != b'\x00\x01':
+            raise VerificationError("Verification failed, sig starts with '{}'".format(clearsig[0:2]))
 
-        padded = rsa.pkcs1._pad_for_signing(message, blocksize)
+        padded = _pad_sig(message, blocksize)
         if padded != clearsig:
             raise VerificationError('Verification failed')
 
         return True
-
-    def encrypt(self, message):
-        return rsa.encrypt(message, self.key)
-
-    def decrypt(self, message):
-        return rsa.decrypt(message, self.key)
 
     def private_export(self):
         if self.public:
@@ -130,5 +128,4 @@ class Key(object):
 
     def public_export(self):
         return rsa.PublicKey(self.key.n, self.key.e).save_pkcs1('PEM')
-
 
